@@ -65,9 +65,18 @@ def main():
     flowables = []
 
     with open(FILENAME) as f:
-        pass
+        read_data = f.read()
 
+    tokens = text2tokens(read_data)
     document.build(flowables)
+
+
+def text2tokens(text):
+    lines = text.strip().splitlines()
+    tokens = [line2token(line) for line in lines]
+    tokens = group_tokens(tokens, T_TABLE, T_TABLE_ROW)
+    tokens = group_tokens(tokens, T_LIST, T_LIST_ITEM)
+    return tokens
 
 
 def line2token(line):
@@ -77,6 +86,41 @@ def line2token(line):
             return token_type, search.group(1)
     else:
         raise
+
+
+def group_tokens(tokens, key, old_key):
+    ranges = get_ranges(tokens, old_key)
+
+    offset = 0
+    for a, b in ranges:
+        left = tokens[:a-offset]
+        center = tokens[a-offset:b+1-offset]
+        right = tokens[b+1-offset:]
+
+        tokens = left + [(key, [value for _, value in center])] + right
+        offset += b - a
+
+    return tokens
+
+
+def get_ranges(tokens, token):
+    ranges = []
+    indices = [i for i, x in enumerate(tokens) if x[0] == token]
+    pairs = zip(indices[:-1], indices[1:])
+
+    for a, b in pairs:
+        if a == b - 1:
+            if len(ranges) == 0:
+                ranges.append((a, b))
+            else:
+                (previous_a, previous_b) = ranges.pop()
+                if a == previous_b:
+                    ranges.append((previous_a, b))
+                else:
+                    ranges.append((previous_a, previous_b))
+                    ranges.append((a, b))
+
+    return ranges
 
 
 if __name__ == '__main__':
