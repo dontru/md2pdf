@@ -4,7 +4,7 @@ import re
 from reportlab.lib.styles import StyleSheet1, ParagraphStyle, ListStyle
 from reportlab.pdfbase.pdfmetrics import registerFont, registerFontFamily
 from reportlab.pdfbase.ttfonts import TTFont
-from reportlab.platypus import SimpleDocTemplate
+from reportlab.platypus import SimpleDocTemplate, ListFlowable, PageBreak, Paragraph
 
 parser = OptionParser()
 parser.add_option("-t", "--title")
@@ -66,8 +66,10 @@ def main():
 
     with open(FILENAME) as f:
         read_data = f.read()
-
     tokens = text2tokens(read_data)
+
+    flowables = [token2flowable(token) for token in tokens]
+    flowables = [f for f in flowables if f is not None]
     document.build(flowables)
 
 
@@ -121,6 +123,27 @@ def get_ranges(tokens, token):
                     ranges.append((a, b))
 
     return ranges
+
+
+def token2flowable(token):
+    key, value = token
+
+    if key == T_LIST:
+        return ListFlowable([paragraph(item) for item in value], style=styles["list"])
+    elif key == T_TABLE:
+        pass
+    elif key == T_PAGE_BREAK:
+        return PageBreak()
+    elif key == T_H3:
+        return paragraph(value, "h3")
+    elif key == T_PARAGRAPH or key == T_LIST_ITEM or key == T_TABLE_ROW:
+        return paragraph(value)
+
+
+def paragraph(text, style="std"):
+    text = re.sub("__([^_]+)__", r"<b>\1</b>", text)
+    text = re.sub("_([^_]+)_", r"<u>\1</u>", text)
+    return Paragraph(text, styles[style])
 
 
 if __name__ == '__main__':
